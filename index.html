@@ -844,7 +844,7 @@
 
       <!-- KANAN: Daftar Log Pemenang (Tema Terang) -->
       <div class="lg:w-2/5 flex flex-col">
-        <div class="clean-draw-card rounded-3xl p-5 flex flex-col justify-between h-full min-h-[420px] shadow-md">
+        <div class="clean-draw-card rounded-3xl p-5 flex flex-col h-full shadow-md">
           <div class="flex justify-between items-center pb-3 border-b border-purple-100 mb-3">
             <h3 class="font-extrabold tracking-wide text-xs sm:text-sm text-purple-700 flex items-center gap-2">
               <i class="fa-solid fa-trophy text-amber-500"></i> DAFTAR PEMENANG (23 HADIAH)
@@ -854,7 +854,7 @@
             </button>
           </div>
 
-          <div id="winnersListContainer" class="flex-grow overflow-y-auto max-h-[400px] space-y-2 pr-1 text-xs">
+          <div id="winnersListContainer" class="flex-1 overflow-y-auto max-h-[580px] space-y-2 pr-1 text-xs">
             <!-- List pemenang di-render via JS -->
           </div>
         </div>
@@ -1938,6 +1938,18 @@
       return `${day}/${month}/${year} ${hours}:${mins}`;
     }
 
+    function formatActivationTime(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}.${mins}`;
+    }
+
     function renderDashboardTable(dataList) {
       const tbody = document.getElementById('dashboardTableBody');
       if (!tbody) return;
@@ -1946,7 +1958,7 @@
       if (totalCount) totalCount.innerText = dataList.length;
 
       if (dataList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="14" class="p-8 text-center text-slate-400 font-medium">Tidak ada data peserta yang ditemukan.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="16" class="p-8 text-center text-slate-400 font-medium">Tidak ada data peserta yang ditemukan.</td></tr>`;
         return;
       }
 
@@ -1954,6 +1966,11 @@
         const isChecked = selectedParticipantIds.has(row.id);
         const waClean = (row.whatsapp || '').replace(/[^0-9]/g, '');
         const waLink = waClean.startsWith('0') ? '62' + waClean.slice(1) : waClean;
+        const statusBadge = row.status_aktivasi === 'AKTIF'
+          ? '<span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-100 text-emerald-700">AKTIF</span>'
+          : '<span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-600">BELUM AKTIF</span>';
+        const petugasText = row.status_aktivasi === 'AKTIF' ? (row.petugas_aktivasi || '-') : '-';
+        const waktuText = (row.status_aktivasi === 'AKTIF' && row.waktu_aktivasi) ? formatActivationTime(row.waktu_aktivasi) : '-';
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-rose-50/20 transition-colors";
@@ -1963,79 +1980,103 @@
           </td>
           <td class="p-3 text-center font-bold text-slate-400">${index + 1}</td>
           <td class="p-3 whitespace-nowrap text-slate-500">${formatDate(row.created_at, true)}</td>
-          <td class="p-3 whitespace-nowrap font-bold text-slate-800 uppercase">${row.nama}</td>
+          <td class="p-3 whitespace-nowrap font-bold text-slate-800 uppercase">${row.nama || '-'}</td>
           <td class="p-3 whitespace-nowrap">
             <a href="https://wa.me/${waLink}" target="_blank" class="text-emerald-600 hover:underline font-bold flex items-center gap-1">
-              ${row.whatsapp} <i class="fa-brands fa-whatsapp text-sm"></i>
+              ${row.whatsapp || '-'} <i class="fa-brands fa-whatsapp text-sm"></i>
             </a>
           </td>
-          <td class="p-3 whitespace-nowrap text-slate-500">${formatDate(row.tanggal_lahir, false)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatDate(row.tanggal_lahir, false)}</td>
           <td class="p-3 whitespace-nowrap text-slate-600">${row.jenis_kelamin || '-'}</td>
-          <td class="p-3 whitespace-nowrap">${row.provinsi || '-'}</td>
-          <td class="p-3 whitespace-nowrap">${row.kabupaten || '-'}</td>
-          <td class="p-3 whitespace-nowrap">${row.kecamatan || '-'}</td>
-          <td class="p-3 whitespace-nowrap">${row.desa || '-'}</td>
-          <td class="p-3 whitespace-nowrap font-black text-rose-500 tracking-wider">${row.kode_undian}</td>
-          <td class="p-3 whitespace-nowrap">
-            <span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${row.status_aktivasi === 'AKTIF' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-500 border border-rose-100'}">
-              ${row.status_aktivasi}
-            </span>
-          </td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${row.provinsi || '-'}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${row.kabupaten || '-'}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${row.kecamatan || '-'}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${row.desa || '-'}</td>
+          <td class="p-3 whitespace-nowrap font-mono font-black text-rose-600">${row.kode_undian || '-'}</td>
+          <td class="p-3 whitespace-nowrap">${statusBadge}</td>
+          <td class="p-3 whitespace-nowrap text-slate-700 font-semibold">${petugasText}</td>
+          <td class="p-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">${waktuText}</td>
           <td class="p-3 text-center whitespace-nowrap">
-            <button onclick="openEditModal(${row.id})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition">
-              <i class="fa-solid fa-pen-to-square"></i> Edit
-            </button>
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="openEditModal(${row.id})" class="text-amber-500 hover:text-amber-600 p-1" title="Edit Peserta">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button onclick="deleteSingleParticipant(${row.id})" class="text-rose-400 hover:text-rose-600 p-1" title="Hapus Peserta">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
       });
+      updateSelectedCount();
+    }
 
-      updateSelectedDeleteButton();
+    function filterDashboardData() {
+      const query = (document.getElementById('dashboardSearch')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('dashboardStatusFilter')?.value || 'Semua';
+
+      const filtered = allParticipants.filter(item => {
+        const matchStatus = statusFilter === 'Semua' || item.status_aktivasi === statusFilter;
+        const matchQuery = !query ||
+          (item.nama && item.nama.toLowerCase().includes(query)) ||
+          (item.whatsapp && item.whatsapp.toLowerCase().includes(query)) ||
+          (item.kode_undian && item.kode_undian.toLowerCase().includes(query)) ||
+          (item.kabupaten && item.kabupaten.toLowerCase().includes(query)) ||
+          (item.petugas_aktivasi && item.petugas_aktivasi.toLowerCase().includes(query));
+        return matchStatus && matchQuery;
+      });
+
+      renderDashboardTable(filtered);
+    }
+
+    function toggleSelectAll(masterCheckbox) {
+      if (masterCheckbox.checked) {
+        allParticipants.forEach(p => selectedParticipantIds.add(p.id));
+      } else {
+        selectedParticipantIds.clear();
+      }
+      renderDashboardTable(allParticipants);
     }
 
     function toggleSelectRow(id, cb) {
-      if (cb.checked) selectedParticipantIds.add(id);
-      else selectedParticipantIds.delete(id);
-      updateSelectedDeleteButton();
+      if (cb.checked) {
+        selectedParticipantIds.add(id);
+      } else {
+        selectedParticipantIds.delete(id);
+      }
+      updateSelectedCount();
     }
 
-    function toggleSelectAll(masterCb) {
-      const checkboxes = document.querySelectorAll('#dashboardTableBody input[type="checkbox"]');
-      checkboxes.forEach(cb => {
-        const id = parseInt(cb.value, 10);
-        cb.checked = masterCb.checked;
-        if (masterCb.checked) selectedParticipantIds.add(id);
-        else selectedParticipantIds.delete(id);
-      });
-      updateSelectedDeleteButton();
-    }
-
-    function updateSelectedDeleteButton() {
-      const count = selectedParticipantIds.size;
+    function updateSelectedCount() {
       const countEl = document.getElementById('selectedCount');
-      if (countEl) countEl.innerText = count;
       const btn = document.getElementById('btnDeleteSelected');
+      const count = selectedParticipantIds.size;
+      if (countEl) countEl.innerText = count;
+
       if (btn) {
-        btn.disabled = count === 0;
-        btn.className = count > 0 
-          ? "btn-active px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
-          : "btn-active px-3.5 py-2 bg-rose-100 text-rose-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed";
+        if (count > 0) {
+          btn.disabled = false;
+          btn.className = "btn-active px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm";
+        } else {
+          btn.disabled = true;
+          btn.className = "btn-active px-3.5 py-2 bg-rose-100 text-rose-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed";
+        }
       }
     }
 
-    async function deleteSelectedParticipants() {
-      if (selectedParticipantIds.size === 0) return;
+    function deleteSingleParticipant(id) {
+      const p = allParticipants.find(x => x.id === id);
+      const nama = p ? p.nama : 'peserta ini';
       showConfirmDialog(
-        "Hapus Peserta Terpilih",
-        `Hapus ${selectedParticipantIds.size} data peserta terpilih dari Supabase?`,
+        "Hapus Peserta",
+        `Apakah Anda yakin ingin menghapus data peserta "${nama}" secara permanen dari database?`,
         async () => {
-          showLoading(true, "Menghapus peserta terpilih...");
+          showLoading(true, "Menghapus peserta...");
           try {
-            const ids = Array.from(selectedParticipantIds);
-            const { error } = await supabaseClient.from('peserta_event').delete().in('id', ids);
+            const { error } = await supabaseClient.from('peserta_event').delete().eq('id', id);
             if (error) throw error;
-
-            selectedParticipantIds.clear();
+            selectedParticipantIds.delete(id);
             await loadDashboardData();
             showNotification("Berhasil", "Data peserta berhasil dihapus.", "success");
           } catch (err) {
@@ -2047,39 +2088,93 @@
       );
     }
 
-    function filterDashboardData() {
-      const q = document.getElementById('dashboardSearch').value.toLowerCase().trim();
-      const statusFilter = document.getElementById('dashboardStatusFilter').value;
+    function deleteSelectedParticipants() {
+      const count = selectedParticipantIds.size;
+      if (count === 0) return;
 
-      const filtered = allParticipants.filter(row => {
-        const matchStatus = statusFilter === 'Semua' || row.status_aktivasi === statusFilter;
-        const matchQuery = !q || 
-          (row.nama && row.nama.toLowerCase().includes(q)) ||
-          (row.whatsapp && row.whatsapp.includes(q)) ||
-          (row.kode_undian && row.kode_undian.toLowerCase().includes(q));
-        return matchStatus && matchQuery;
-      });
+      showConfirmDialog(
+        "Hapus Massal Peserta",
+        `Apakah Anda yakin ingin menghapus ${count} peserta terpilih dari database?`,
+        async () => {
+          showLoading(true, `Menghapus ${count} peserta terpilih...`);
+          try {
+            const idsToDelete = Array.from(selectedParticipantIds);
+            const { error } = await supabaseClient.from('peserta_event').delete().in('id', idsToDelete);
+            if (error) throw error;
+            selectedParticipantIds.clear();
+            await loadDashboardData();
+            showNotification("Berhasil", `${count} peserta berhasil dihapus.`, "success");
+          } catch (err) {
+            showNotification("Gagal Hapus Massal", err.message, "error");
+          } finally {
+            showLoading(false);
+          }
+        }
+      );
+    }
 
-      renderDashboardTable(filtered);
+    function onEditStatusChanged() {
+      const statusEl = document.getElementById('editStatusAktivasi');
+      const petugasInput = document.getElementById('editPetugasAktivasi');
+      const waktuInput = document.getElementById('editWaktuAktivasi');
+      if (!statusEl || !petugasInput || !waktuInput) return;
+
+      const status = statusEl.value;
+      if (status === 'AKTIF') {
+        if (!petugasInput.value) {
+          petugasInput.value = localStorage.getItem('suryatokoku_officer_name') || 'Admin Toko';
+        }
+        if (!waktuInput.value) {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+          waktuInput.value = now.toISOString().slice(0, 16);
+        }
+      } else {
+        petugasInput.value = '';
+        waktuInput.value = '';
+      }
     }
 
     // Modal Edit Peserta
     function openEditModal(id) {
       const p = allParticipants.find(x => x.id === id);
       if (!p) return;
-      document.getElementById('editId').value = p.id;
-      document.getElementById('editKodeUndian').value = p.kode_undian;
-      document.getElementById('editNama').value = p.nama;
-      document.getElementById('editWhatsapp').value = p.whatsapp;
-      document.getElementById('editTanggalLahir').value = p.tanggal_lahir || '';
-      document.getElementById('editJenisKelamin').value = p.jenis_kelamin || 'Perempuan';
-      document.getElementById('editProvinsi').value = p.provinsi || '';
-      document.getElementById('editKabupaten').value = p.kabupaten || '';
-      document.getElementById('editKecamatan').value = p.kecamatan || '';
-      document.getElementById('editDesa').value = p.desa || '';
-      document.getElementById('editStatusAktivasi').value = p.status_aktivasi || 'BELUM AKTIF';
 
-      document.getElementById('editParticipantModal').classList.remove('hidden');
+      const setVal = (elemId, val) => {
+        const el = document.getElementById(elemId);
+        if (el) el.value = val !== undefined && val !== null ? val : '';
+      };
+
+      setVal('editId', p.id);
+      setVal('editKodeUndian', p.kode_undian);
+      setVal('editNama', p.nama);
+      setVal('editWhatsapp', p.whatsapp);
+      setVal('editTanggalLahir', p.tanggal_lahir || '');
+      setVal('editJenisKelamin', p.jenis_kelamin || 'Perempuan');
+      setVal('editProvinsi', p.provinsi || '');
+      setVal('editKabupaten', p.kabupaten || '');
+      setVal('editKecamatan', p.kecamatan || '');
+      setVal('editDesa', p.desa || '');
+      setVal('editStatusAktivasi', p.status_aktivasi || 'BELUM AKTIF');
+      setVal('editPetugasAktivasi', p.petugas_aktivasi || '');
+
+      const waktuInput = document.getElementById('editWaktuAktivasi');
+      if (waktuInput) {
+        if (p.waktu_aktivasi) {
+          const d = new Date(p.waktu_aktivasi);
+          if (!isNaN(d.getTime())) {
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            waktuInput.value = d.toISOString().slice(0, 16);
+          } else {
+            waktuInput.value = '';
+          }
+        } else {
+          waktuInput.value = '';
+        }
+      }
+
+      const modal = document.getElementById('editParticipantModal');
+      if (modal) modal.classList.remove('hidden');
     }
 
     function closeEditModal() {
@@ -2089,17 +2184,30 @@
 
     async function saveEditedParticipant(e) {
       e.preventDefault();
-      const id = document.getElementById('editId').value;
+      const id = document.getElementById('editId')?.value;
+      if (!id) return;
+
+      const statusAktivasi = document.getElementById('editStatusAktivasi')?.value || 'BELUM AKTIF';
+      const petugasAktivasi = document.getElementById('editPetugasAktivasi')?.value?.trim() || '';
+      const rawWaktu = document.getElementById('editWaktuAktivasi')?.value;
+
+      let waktuAktivasiIso = null;
+      if (statusAktivasi === 'AKTIF') {
+        waktuAktivasiIso = rawWaktu ? new Date(rawWaktu).toISOString() : new Date().toISOString();
+      }
+
       const payload = {
-        nama: document.getElementById('editNama').value.trim(),
-        whatsapp: document.getElementById('editWhatsapp').value.trim(),
-        tanggal_lahir: document.getElementById('editTanggalLahir').value || null,
-        jenis_kelamin: document.getElementById('editJenisKelamin').value,
-        provinsi: document.getElementById('editProvinsi').value.trim(),
-        kabupaten: document.getElementById('editKabupaten').value.trim(),
-        kecamatan: document.getElementById('editKecamatan').value.trim(),
-        desa: document.getElementById('editDesa').value.trim(),
-        status_aktivasi: document.getElementById('editStatusAktivasi').value
+        nama: document.getElementById('editNama')?.value?.trim() || '',
+        whatsapp: document.getElementById('editWhatsapp')?.value?.trim() || '',
+        tanggal_lahir: document.getElementById('editTanggalLahir')?.value || null,
+        jenis_kelamin: document.getElementById('editJenisKelamin')?.value || 'Perempuan',
+        provinsi: document.getElementById('editProvinsi')?.value?.trim() || '',
+        kabupaten: document.getElementById('editKabupaten')?.value?.trim() || '',
+        kecamatan: document.getElementById('editKecamatan')?.value?.trim() || '',
+        desa: document.getElementById('editDesa')?.value?.trim() || '',
+        status_aktivasi: statusAktivasi,
+        petugas_aktivasi: statusAktivasi === 'AKTIF' ? (petugasAktivasi || 'Admin') : null,
+        waktu_aktivasi: waktuAktivasiIso
       };
 
       showLoading(true, "Menyimpan perubahan peserta...");
@@ -2132,16 +2240,25 @@
         "Kecamatan": p.kecamatan || '-',
         "Desa/Kelurahan": p.desa || '-',
         "Nomor Undian": p.kode_undian,
-        "Status Kupon": p.status_aktivasi
+        "Status Kupon": p.status_aktivasi,
+        "Petugas Aktivasi": p.status_aktivasi === 'AKTIF' ? (p.petugas_aktivasi || '-') : '-',
+        "Waktu Aktivasi": p.status_aktivasi === 'AKTIF' && p.waktu_aktivasi ? formatActivationTime(p.waktu_aktivasi) : '-'
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      worksheet['!cols'] = [
+        { wch: 6 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
+        { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 22 },
+        { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 },
+        { wch: 20 }, { wch: 20 }
+      ];
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Peserta Undian");
       XLSX.writeFile(workbook, `Peserta_Beautyfest_Suryatokoku_${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
 
-    // Download Template Excel (.xlsx) Lengkap dengan Contoh Data
+    // Download Template Excel (.xlsx) Lengkap dengan Contoh Data & Kolom Petugas
     function downloadExcelTemplate() {
       const sampleRows = [
         {
@@ -2154,7 +2271,9 @@
           "Kecamatan": "SUMBERSARI",
           "Desa/Kelurahan": "TEGAL GEDE",
           "Nomor Undian": "",
-          "Status Kupon": "AKTIF"
+          "Status Kupon": "AKTIF",
+          "Petugas Aktivasi": "Budi Santoso",
+          "Waktu Aktivasi": "20/03/2026 10.30"
         },
         {
           "Nama Pelanggan": "Dewi Sartika",
@@ -2166,7 +2285,9 @@
           "Kecamatan": "ROGOJAMPI",
           "Desa/Kelurahan": "ROGOJAMPI",
           "Nomor Undian": "",
-          "Status Kupon": "BELUM AKTIF"
+          "Status Kupon": "BELUM AKTIF",
+          "Petugas Aktivasi": "",
+          "Waktu Aktivasi": ""
         }
       ];
 
@@ -2174,13 +2295,13 @@
       worksheet['!cols'] = [
         { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 15 },
         { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 18 },
-        { wch: 16 }, { wch: 14 }
+        { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 20 }
       ];
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template Peserta");
       XLSX.writeFile(workbook, "Template_Upload_Peserta_Beautyfest.xlsx");
-      showNotification("Template Diunduh", "File template Excel berhasil didownload! Kolom 'Nomor Undian' boleh dikosongkan agar otomatis diisi sistem.", "success");
+      showNotification("Template Diunduh", "File template Excel berhasil didownload! Kolom 'Petugas Aktivasi' dan 'Waktu Aktivasi' dapat diisi untuk kupon AKTIF.", "success");
     }
 
     function parseExcelDate(val) {
@@ -2196,6 +2317,30 @@
         return `${parts[3]}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
       }
       return str;
+    }
+
+    function parseExcelDateTime(val) {
+      if (!val) return null;
+      if (typeof val === 'number') {
+        const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+        return d.toISOString();
+      }
+      const str = String(val).trim();
+      const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?$/);
+      if (match) {
+        const d = new Date(
+          parseInt(match[3], 10),
+          parseInt(match[2], 10) - 1,
+          parseInt(match[1], 10),
+          parseInt(match[4], 10),
+          parseInt(match[5], 10),
+          parseInt(match[6] || '0', 10)
+        );
+        if (!isNaN(d.getTime())) return d.toISOString();
+      }
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString();
+      return new Date().toISOString();
     }
 
     // Import / Upload Excel (.xlsx)
@@ -2215,6 +2360,7 @@
 
           if (jsonData.length === 0) throw new Error("File Excel kosong.");
 
+          const defaultOfficer = localStorage.getItem('suryatokoku_officer_name') || 'Import Excel';
           const inserts = [];
           for (const item of jsonData) {
             const nama = item['Nama Pelanggan'] || item['Nama'] || item['nama'];
@@ -2223,6 +2369,17 @@
 
             const tglLahir = parseExcelDate(item['Tanggal Lahir'] || item['tanggal_lahir']);
             const nextTicket = item['Nomor Undian'] || item['kode_undian'] || await generateNextTicketNumber();
+            const statusKupon = (item['Status Kupon'] || item['status_aktivasi'] || 'BELUM AKTIF').toUpperCase();
+            
+            let petugasAktivasi = null;
+            let waktuAktivasi = null;
+
+            if (statusKupon === 'AKTIF') {
+              petugasAktivasi = item['Petugas Aktivasi'] || item['petugas_aktivasi'] || defaultOfficer;
+              const rawWaktu = item['Waktu Aktivasi'] || item['waktu_aktivasi'];
+              waktuAktivasi = rawWaktu ? parseExcelDateTime(rawWaktu) : new Date().toISOString();
+            }
+
             inserts.push({
               public_token: 'UP-' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
               kode_undian: nextTicket,
@@ -2234,7 +2391,9 @@
               kabupaten: item['Kabupaten/Kota'] || item['Kabupaten'] || '-',
               kecamatan: item['Kecamatan'] || '-',
               desa: item['Desa/Kelurahan'] || item['Desa'] || '-',
-              status_aktivasi: item['Status Kupon'] || item['status_aktivasi'] || 'BELUM AKTIF'
+              status_aktivasi: statusKupon === 'AKTIF' ? 'AKTIF' : 'BELUM AKTIF',
+              petugas_aktivasi: petugasAktivasi,
+              waktu_aktivasi: waktuAktivasi
             });
           }
 
