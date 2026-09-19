@@ -180,6 +180,51 @@
     </div>
   </div>
 
+  <!-- ================= POPUP NOMOR WHATSAPP SUDAH TERDAFTAR ================= -->
+  <div id="duplicateUserModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-[2.25rem] w-full max-w-sm overflow-hidden shadow-2xl transform transition-all border border-rose-100">
+      <div class="h-20 flex items-center justify-center text-white relative bg-gradient-to-r from-amber-500 to-rose-500 shadow-inner">
+        <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-2xl">
+          <i class="fa-solid fa-id-card-clip"></i>
+        </div>
+      </div>
+      <div class="p-6 text-center space-y-4">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-850">Sudah Pernah Mendaftar</h3>
+          <p class="text-[11px] text-slate-400 mt-1 font-semibold leading-relaxed">Nomor WhatsApp ini sudah tercatat di sistem undian Beautyfest.</p>
+        </div>
+
+        <div class="bg-rose-50/40 p-4 rounded-2xl border border-rose-100 text-left space-y-2 text-xs">
+          <div class="flex justify-between items-center border-b border-rose-100/50 pb-1.5">
+            <span class="text-slate-400 font-bold">Nama</span>
+            <span id="dupNama" class="font-extrabold text-slate-800 uppercase text-right">--</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-rose-100/50 pb-1.5">
+            <span class="text-slate-400 font-bold">Nomor WA</span>
+            <span id="dupWhatsapp" class="font-extrabold text-slate-800">--</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-rose-100/50 pb-1.5">
+            <span class="text-rose-500 font-bold">Nomor Undian</span>
+            <span id="dupKode" class="font-black text-rose-600 bg-white px-2 py-0.5 rounded-lg border border-rose-200">--</span>
+          </div>
+          <div class="flex justify-between items-center pt-0.5">
+            <span class="text-slate-400 font-bold">Tanggal Mendaftar</span>
+            <span id="dupTanggal" class="font-extrabold text-slate-700 text-right">--</span>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <button id="dupBtnViewTicket" onclick="openExistingTicketFromModal()" class="btn-active w-full h-11 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-2xl text-xs transition shadow-button flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-ticket"></i> Buka Kupon Undian Saya
+          </button>
+          <button onclick="closeDuplicateModal()" class="btn-active w-full h-11 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition">
+            Mengerti & Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================================================= -->
   <!-- 1. HALAMAN UTAMA: PENDAFTARAN & KUPON TICKET VIEW       -->
   <!-- ======================================================= -->
@@ -878,6 +923,8 @@
     let html5QrScanner = null;
     let selectedParticipantIds = new Set();
     let isDashboardAuthenticated = false;
+    let currentActiveTicketData = null;
+    let currentDuplicateRecord = null;
 
     // Status Klik 6 Media Sosial
     let localVerificationStatus = {
@@ -895,6 +942,7 @@
       loadProvinces();
       handleHashNavigation();
       window.addEventListener('hashchange', handleHashNavigation);
+      checkUrlForTicket();
 
       const savedSosmed = localStorage.getItem('suryatokoku_sosmed_clicks');
       if (savedSosmed) {
@@ -911,38 +959,27 @@
       }
     });
 
-    /* ==========================================================
-       LOGIKA VERIFIKASI KLIK MEDIA SOSIAL
-    ========================================================== */
-    function markSocialOpened(key) {
-      localVerificationStatus[key] = true;
-      localStorage.setItem('suryatokoku_sosmed_clicks', JSON.stringify(localVerificationStatus));
-      updateSocialButtonsVisual();
-      toggleSubmitButton();
-    }
-
-    function updateSocialButtonsVisual() {
-      const keys = ['ig_stk', 'ig_sf', 'ig_channel', 'threads_stk', 'tiktok_stk', 'wa_channel'];
-      keys.forEach(key => {
-        const btn = document.getElementById(`btn_${key}`);
-        if (btn && localVerificationStatus[key]) {
-          btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Sudah Dibuka';
-          btn.className = "btn-active bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-extrabold py-2 px-3.5 rounded-xl transition-all text-center shadow-sm";
+    // Otomatis Buka Tiket Jika URL Memuat Parameter Token (?t=...)
+    async function checkUrlForTicket() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('t');
+      if (token) {
+        showLoading(true, "Memuat kupon undian Anda...");
+        try {
+          const { data, error } = await supabaseClient
+            .from('peserta_event')
+            .select('*')
+            .eq('public_token', token)
+            .maybeSingle();
+          if (error) throw error;
+          if (data) {
+            renderSuccessTicket(data);
+          }
+        } catch (err) {
+          console.warn("Gagal membuka kupon dari token URL:", err);
+        } finally {
+          showLoading(false);
         }
-      });
-    }
-
-    function toggleSubmitButton() {
-      const checked = document.getElementById('checkSosmed').checked;
-      const allClicked = Object.values(localVerificationStatus).every(status => status === true);
-      const btn = document.getElementById('btnDaftar');
-
-      if (checked && allClicked) {
-        btn.removeAttribute('disabled');
-        btn.className = "btn-active w-full h-12 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-button flex items-center justify-center gap-2 cursor-pointer";
-      } else {
-        btn.setAttribute('disabled', 'true');
-        btn.className = "btn-active w-full h-12 bg-slate-200 text-slate-400 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-not-allowed";
       }
     }
 
@@ -1137,58 +1174,31 @@
 
       showLoading(true, "Memeriksa riwayat pendaftaran...");
 
-      // 4. Pengecekan Duplikasi: Apakah nomor WhatsApp atau Nama sudah pernah terdaftar
+      // 4. Pengecekan Duplikasi: Acuan HANYA nomor WhatsApp
       try {
-        // Cek berdasarkan nomor WhatsApp terlebih dahulu
-        const { data: existingByWa, error: errWa } = await supabaseClient
+        const { data: existingRecord, error: errWa } = await supabaseClient
           .from('peserta_event')
-          .select('nama, kode_undian, whatsapp')
+          .select('*')
           .eq('whatsapp', whatsapp)
           .maybeSingle();
 
         if (errWa) throw errWa;
 
-        let existingRecord = existingByWa;
-
-        // Jika nomor WA belum ada, cek apakah Nama lengkap sudah terdaftar
-        if (!existingRecord) {
-          const { data: existingByName, error: errName } = await supabaseClient
-            .from('peserta_event')
-            .select('nama, kode_undian, whatsapp')
-            .ilike('nama', nama)
-            .maybeSingle();
-
-          if (errName) throw errName;
-          existingRecord = existingByName;
-        }
-
-        // Jika data sudah pernah terdaftar, tolak dan tampilkan pop-up
+        // Jika nomor WhatsApp sudah terdaftar, tolak dan munculkan modal pop-up khusus
         if (existingRecord) {
           showLoading(false);
-          showNotification(
-            "Sudah Pernah Terdaftar!",
-            `Data ini sudah pernah terdaftar sebelumnya:<br><br>` +
-            `<div class="bg-rose-50/80 p-3.5 rounded-2xl border border-rose-200 text-left space-y-2 text-xs">` +
-            `  <div class="flex justify-between items-start">` +
-            `    <span class="text-slate-500 font-semibold">Nama:</span>` +
-            `    <span class="font-extrabold text-slate-800 uppercase text-right">${existingRecord.nama}</span>` +
-            `  </div>` +
-            `  <div class="flex justify-between items-center">` +
-            `    <span class="text-slate-500 font-semibold">Nomor WhatsApp:</span>` +
-            `    <span class="font-extrabold text-slate-800">${existingRecord.whatsapp}</span>` +
-            `  </div>` +
-            `  <div class="flex justify-between items-center pt-2 border-t border-rose-100">` +
-            `    <span class="text-rose-600 font-bold">Nomor Undian:</span>` +
-            `    <span class="font-black text-sm text-rose-600 bg-white px-2.5 py-0.5 rounded-lg border border-rose-200 shadow-sm">${existingRecord.kode_undian}</span>` +
-            `  </div>` +
-            `</div><br>` +
-            `<span class="text-[11px] text-slate-500 font-medium leading-relaxed block">Setiap nama dan nomor WhatsApp hanya berhak mendaftar 1 (satu) kali.</span>`,
-            "error"
-          );
+          currentDuplicateRecord = existingRecord;
+
+          document.getElementById('dupNama').innerText = existingRecord.nama;
+          document.getElementById('dupWhatsapp').innerText = existingRecord.whatsapp;
+          document.getElementById('dupKode').innerText = existingRecord.kode_undian;
+          document.getElementById('dupTanggal').innerText = formatDate(existingRecord.created_at, true);
+
+          document.getElementById('duplicateUserModal').classList.remove('hidden');
           return;
         }
       } catch (err) {
-        console.warn("Gagal mengecek duplikasi di Supabase:", err);
+        console.warn("Gagal mengecek duplikasi nomor WA di Supabase:", err);
       }
 
       showLoading(true, "Menganalisis slot kupon undian...");
@@ -1250,12 +1260,21 @@
       modalIcon.className = "fa-brands fa-whatsapp text-white animate-bounce";
 
       let secondsLeft = 5;
-      modalMsg.innerHTML = `Pendaftaran sukses! Anda akan diarahkan ke WhatsApp Admin untuk mengirimkan bukti pendaftaran dalam <span id="popupCountdown" class="font-extrabold text-sm text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">${secondsLeft}</span> detik.`;
+      modalMsg.innerHTML = `Pendaftaran sukses! Anda akan diarahkan ke WhatsApp Admin untuk mengirimkan bukti pendaftaran dalam <span id="popupCountdown" class="font-extrabold text-base text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">${secondsLeft}</span> detik.`;
 
       modalBtn.innerText = "Kirim Sekarang 🚀";
       modalBtn.className = "btn-active w-full h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-xs transition shadow-button";
 
-      const countdownInterval = setInterval(() => {
+      let countdownInterval;
+      modalBtn.onclick = function() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        closeCustomModal();
+        shareTicketToWA();
+      };
+
+      modal.classList.remove('hidden');
+
+      countdownInterval = setInterval(() => {
         secondsLeft--;
         const countElem = document.getElementById('popupCountdown');
         if (countElem) countElem.innerText = secondsLeft;
@@ -1266,25 +1285,42 @@
           shareTicketToWA();
         }
       }, 1000);
+    }
 
-      modalBtn.onclick = function() {
-        clearInterval(countdownInterval);
-        closeCustomModal();
-        shareTicketToWA();
-      };
+    function openExistingTicketFromModal() {
+      if (currentDuplicateRecord) {
+        closeDuplicateModal();
+        renderSuccessTicket(currentDuplicateRecord);
+        if (currentDuplicateRecord.public_token) {
+          window.history.pushState({}, '', `?t=${currentDuplicateRecord.public_token}`);
+        }
+      }
+    }
 
-      modal.classList.remove('hidden');
+    function closeDuplicateModal() {
+      document.getElementById('duplicateUserModal').classList.add('hidden');
+      currentDuplicateRecord = null;
     }
 
     function renderSuccessTicket(data) {
+      currentActiveTicketData = data;
       document.getElementById('wrapperFormDaftar').classList.add('hidden');
       const ticketView = document.getElementById('wrapperTicketView');
       ticketView.classList.remove('hidden');
 
       document.getElementById('ticketNama').innerText = data.nama;
       document.getElementById('ticketWhatsapp').innerText = data.whatsapp;
-      document.getElementById('ticketWilayah').innerText = `${data.kabupaten}, ${data.provinsi}`;
+      document.getElementById('ticketWilayah').innerText = `${data.kabupaten || ''}, ${data.provinsi || ''}`;
       document.getElementById('ticketKode').innerText = data.kode_undian;
+
+      const statusEl = document.getElementById('ticketStatus');
+      if (data.status_aktivasi === 'AKTIF') {
+        statusEl.innerText = 'AKTIF';
+        statusEl.className = 'px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-100 text-emerald-600';
+      } else {
+        statusEl.innerText = 'BELUM AKTIF';
+        statusEl.className = 'px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-600';
+      }
 
       const qrContainer = document.getElementById('ticketQrCode');
       qrContainer.innerHTML = '';
@@ -1302,12 +1338,20 @@
       document.getElementById('formPendaftaran').reset();
       document.getElementById('wrapperFormDaftar').classList.remove('hidden');
       document.getElementById('wrapperTicketView').classList.add('hidden');
+      window.history.pushState({}, '', window.location.pathname);
     }
 
     function shareTicketToWA() {
-      const nama = document.getElementById('ticketNama').innerText;
-      const kode = document.getElementById('ticketKode').innerText;
-      const msg = `Halo Admin Suryatokoku 😊 Saya sudah mendaftar kupon undian Beautyfest!\n\nNama: ${nama}\nNomor Undian: ${kode}\n\nMohon bantuannya untuk proses aktivasi kupon ini ya. Terima kasih!`;
+      const nama = currentActiveTicketData ? currentActiveTicketData.nama : document.getElementById('ticketNama').innerText;
+      const whatsapp = currentActiveTicketData ? currentActiveTicketData.whatsapp : document.getElementById('ticketWhatsapp').innerText;
+      const kode = currentActiveTicketData ? currentActiveTicketData.kode_undian : document.getElementById('ticketKode').innerText;
+      const token = currentActiveTicketData?.public_token || '';
+
+      const ticketLink = token 
+        ? `${window.location.origin}${window.location.pathname}?t=${token}`
+        : `${window.location.origin}${window.location.pathname}`;
+
+      const msg = `Halo Admin Suryatokoku 😊 Saya sudah mendaftar kupon undian Beautyfest!\n\nNama: ${nama}\nno. WA : ${whatsapp}\nNomor Undian: ${kode}\n\nBerikut link kupon undian saya :\n${ticketLink}`;
       window.open(`https://wa.me/${CONFIG.WHATSAPP_ADMIN}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
