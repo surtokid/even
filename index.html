@@ -1061,13 +1061,36 @@
       document.getElementById('inputInstagramLink').required = show;
     }
 
+    function markSocialOpened(key) {
+      localVerificationStatus[key] = true;
+      localStorage.setItem('suryatokoku_sosmed_clicks', JSON.stringify(localVerificationStatus));
+      updateSocialButtonsVisual();
+      toggleSubmitButton();
+    }
+
+    function updateSocialButtonsVisual() {
+      const keys = ['ig_stk', 'ig_sf', 'ig_channel', 'threads_stk', 'tiktok_stk', 'wa_channel'];
+      keys.forEach(key => {
+        const btn = document.getElementById(`btn_${key}`);
+        if (btn && localVerificationStatus[key]) {
+          btn.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Sudah Dibuka';
+          btn.className = "btn-active bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-extrabold py-2 px-4 rounded-xl transition-all text-center shadow-sm";
+        }
+      });
+    }
+
     function toggleSubmitButton() {
-      const checked = document.getElementById('checkSosmed').checked;
-      const btn = document.getElementById('btnDaftar');
-      btn.disabled = !checked;
-      btn.className = checked 
-        ? "btn-active w-full h-12 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-button flex items-center justify-center gap-2 cursor-pointer"
-        : "btn-active w-full h-12 bg-slate-200 text-slate-400 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-not-allowed";
+      const checkbox = document.getElementById('checkSosmed');
+      const submitBtn = document.getElementById('btnDaftar');
+      const allClicked = Object.values(localVerificationStatus).every(status => status === true);
+
+      if (checkbox && checkbox.checked && allClicked) {
+        submitBtn.disabled = false;
+        submitBtn.className = "btn-active w-full h-12 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-button flex items-center justify-center gap-2 cursor-pointer";
+      } else {
+        submitBtn.disabled = true;
+        submitBtn.className = "btn-active w-full h-12 bg-slate-200 text-slate-400 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-not-allowed";
+      }
     }
 
     function initDOBDropdowns() {
@@ -1167,6 +1190,17 @@
         showNotification(
           "Nomor WhatsApp Kurang Lengkap",
           "Nomor WhatsApp minimal terdiri dari <strong>10 karakter/digit</strong>.<br>Silakan periksa kembali nomor yang Anda masukkan.",
+          "error"
+        );
+        return;
+      }
+
+      const allSocialClicked = Object.values(localVerificationStatus).every(status => status === true);
+      const checkSosmed = document.getElementById('checkSosmed').checked;
+      if (!allSocialClicked || !checkSosmed) {
+        showNotification(
+          "Syarat Belum Lengkap",
+          "Harap buka/ikuti seluruh tautan media sosial resmi di atas dan centang pernyataan sebelum mendaftar.",
           "error"
         );
         return;
@@ -1287,12 +1321,25 @@
       }, 1000);
     }
 
+    // Helper aman untuk memperbarui URL tanpa memicu SecurityError di lingkungan blob:/iframe
+    function safeUpdateUrl(newUrl) {
+      try {
+        if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
+          window.history.pushState({}, '', newUrl);
+        }
+      } catch (e) {
+        console.warn("history.pushState diabaikan karena pembatasan lingkungan sandbox/blob:", e);
+      }
+    }
+
     function openExistingTicketFromModal() {
       if (currentDuplicateRecord) {
+        // Amankan objek data ke variabel lokal sebelum memanggil closeDuplicateModal()
+        const targetRecord = currentDuplicateRecord;
         closeDuplicateModal();
-        renderSuccessTicket(currentDuplicateRecord);
-        if (currentDuplicateRecord.public_token) {
-          window.history.pushState({}, '', `?t=${currentDuplicateRecord.public_token}`);
+        renderSuccessTicket(targetRecord);
+        if (targetRecord.public_token) {
+          safeUpdateUrl(`?t=${targetRecord.public_token}`);
         }
       }
     }
@@ -1303,15 +1350,18 @@
     }
 
     function renderSuccessTicket(data) {
+      if (!data) return;
       currentActiveTicketData = data;
       document.getElementById('wrapperFormDaftar').classList.add('hidden');
       const ticketView = document.getElementById('wrapperTicketView');
       ticketView.classList.remove('hidden');
 
-      document.getElementById('ticketNama').innerText = data.nama;
-      document.getElementById('ticketWhatsapp').innerText = data.whatsapp;
-      document.getElementById('ticketWilayah').innerText = `${data.kabupaten || ''}, ${data.provinsi || ''}`;
-      document.getElementById('ticketKode').innerText = data.kode_undian;
+      document.getElementById('ticketNama').innerText = data.nama || '--';
+      document.getElementById('ticketWhatsapp').innerText = data.whatsapp || '--';
+      
+      const wilayahText = [data.kabupaten, data.provinsi].filter(Boolean).join(', ');
+      document.getElementById('ticketWilayah').innerText = wilayahText || '--';
+      document.getElementById('ticketKode').innerText = data.kode_undian || '--';
 
       const statusEl = document.getElementById('ticketStatus');
       if (data.status_aktivasi === 'AKTIF') {
@@ -1324,21 +1374,23 @@
 
       const qrContainer = document.getElementById('ticketQrCode');
       qrContainer.innerHTML = '';
-      new QRCode(qrContainer, {
-        text: `${CONFIG.BASE_URL}#petugas?code=${data.kode_undian}`,
-        width: 190,
-        height: 190,
-        colorDark: "#1e293b",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-      });
+      if (data.kode_undian) {
+        new QRCode(qrContainer, {
+          text: `${CONFIG.BASE_URL}#petugas?code=${data.kode_undian}`,
+          width: 190,
+          height: 190,
+          colorDark: "#1e293b",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
     }
 
     function kembaliKePendaftaran() {
       document.getElementById('formPendaftaran').reset();
       document.getElementById('wrapperFormDaftar').classList.remove('hidden');
       document.getElementById('wrapperTicketView').classList.add('hidden');
-      window.history.pushState({}, '', window.location.pathname);
+      safeUpdateUrl(window.location.pathname);
     }
 
     function shareTicketToWA() {
